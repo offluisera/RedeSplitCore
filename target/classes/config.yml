@@ -1,0 +1,16 @@
+# Identificador único deste servidor na rede.
+# Exemplos: lobby, rankup, fullpvp, survival, skyblock
+server-id: "lobby"
+
+database:
+  host: "82.39.107.62"
+  port: 3306
+  name: "core"
+  user: "splitcore"
+  password: "RLbKhFS7wswR8EwM"
+
+# Configurações da API para o Painel Web
+api:
+  port: 8080
+  # Mude esta chave para algo bem complexo!
+  token: "RedeSplit_Secret_Key_2024_@!"

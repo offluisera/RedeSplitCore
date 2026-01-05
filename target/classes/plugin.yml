@@ -1,0 +1,115 @@
+name: RedeSplitCore
+version: 1.0-SNAPSHOT
+main: org.redesplit.github.offluisera.redesplitcore.RedeSplitCore
+author: offluisera
+database: true
+
+commands:
+  # Comandos de Punição
+  ban:
+    description: Bane um jogador
+    permission: redesplit.punish
+  tempban:
+    description: Bane temporariamente (Alias para ban)
+    permission: redesplit.punish
+  mute:
+    description: Muta um jogador
+    permission: redesplit.punish
+  tempmute:
+    description: Muta temporariamente (Alias para mute)
+    permission: redesplit.punish
+  kick:
+    description: Expulsa um jogador
+    permission: redesplit.punish
+  unban:
+    description: Remove banimento
+    permission: redesplit.punish
+  unmute:
+    description: Remove mute
+    permission: redesplit.punish
+  pardon: # Alias vanilla para unban
+    description: Remove banimento
+    permission: redesplit.punish
+
+  # Comandos de Rank
+  setrank:
+    description: Alterar o rank de um jogador.
+    usage: /setrank <player> <rank>
+    permission: redesplit.admin
+  rank:
+    description: Comandos de gerenciamento de rank e permissões.
+    usage: /rank <rank> addperm <permissão>
+    permission: redesplit.admin
+  settemprank:
+    description: Setar rank temporario.
+    usage: /settemprank <nick> <tempo> <rank>
+    permission: redesplit.admin
+  perm:
+    description: Gerenciar permissões de usuário.
+    usage: /perm user <nick> addperm <perm>
+    permission: redesplit.admin
+
+  check:
+    description: Ver o perfil, rank e permissões de um jogador.
+    usage: /check <player>
+    permission: redesplit.admin
+    aliases: [ userinfo, profile ]
+
+  ranks:
+    description: Lista todos os cargos disponíveis no banco de dados.
+    usage: /ranks
+    permission: redesplit.admin
+    aliases: [ listgroups ]
+
+  setparent:
+    description: Define de quem um rank herda permissões.
+    usage: /setparent <rank_filho> <rank_pai>
+    permission: redesplit.admin
+
+  ativar:
+    description: Ativa uma Key ou Cupom gerado no site.
+    usage: /ativar <codigo>
+    permission: redesplit.membro # Todos podem usar
+    aliases: [ redeem, key ]
+
+  permhelp:
+    description: Lista de ajuda dos comandos de permissão.
+    usage: /permhelp
+    permission: redesplit.admin
+
+  report:
+    description: Denunciar um jogador.
+    usage: /report <player> <motivo>
+  money:
+    description: Ver seu saldo.
+    aliases: [ saldo, coins ]
+  pay:
+    description: Enviar dinheiro.
+    aliases: [ pagar ]
+  eco:
+    description: Admin coins.
+    permission: redesplit.admin
+  cash:
+    description: Admin cash.
+    permission: redesplit.admin
+  sc:
+    description: Chat da Staff
+    aliases: [ staffchat ]
+  v:
+    description: Ficar invisível
+    aliases: [ vanish ]
+  votar:
+    description: Votar enquete
+    aliases: [ vote ]
+  medalha:
+    description: Gerencia as medalhas/conquistas dos jogadores para o site.
+    usage: /medalha <dar/remover> <jogador> <id_medalha>
+    permission: redesplit.admin
+    permission-message: §cVocê não tem permissão para gerenciar medalhas.
+  rsanuncio:
+    description: Comando interno para anúncios coloridos da rede.
+    permission: redesplit.admin
+  indique:
+    description: Sistema de indicação de amigos
+    usage: /indique <código>
+    aliases: [ referral, indicar ]
