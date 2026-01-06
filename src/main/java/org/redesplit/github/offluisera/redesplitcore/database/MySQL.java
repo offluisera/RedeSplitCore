@@ -31,22 +31,40 @@ public class MySQL {
             String pass = plugin.getConfig().getString("database.password", "");
             int porta = plugin.getConfig().getInt("database.port", 3306);
 
-            String url = "jdbc:mysql://" + host + ":" + porta + "/" + db + "?useSSL=false&useTimezone=true&serverTimezone=UTC&allowPublicKeyRetrieval=true";
+            String url = "jdbc:mysql://" + host + ":" + porta + "/" + db +
+                    "?useSSL=false&useTimezone=true&serverTimezone=UTC&allowPublicKeyRetrieval=true" +
+                    "&autoReconnect=true&useUnicode=true&characterEncoding=utf8";
 
             config.setJdbcUrl(url);
             config.setUsername(user);
             config.setPassword(pass);
             config.setDriverClassName("com.mysql.cj.jdbc.Driver");
 
-            config.setMaximumPoolSize(10);
-            config.setMinimumIdle(2);
-            config.setConnectionTimeout(5000);
+            // ✅ CONFIGURAÇÕES OTIMIZADAS PARA EVITAR TIMEOUT
+            config.setMaximumPoolSize(20);              // Aumentado de 10 para 20
+            config.setMinimumIdle(5);                   // Aumentado de 2 para 5
+            config.setConnectionTimeout(10000);         // 10 segundos (antes era 5)
+            config.setIdleTimeout(600000);              // 10 minutos
+            config.setMaxLifetime(1800000);             // 30 minutos
+            config.setLeakDetectionThreshold(300000);    // Detecta vazamento após 60s
+
+            // Propriedades de performance
             config.addDataSourceProperty("cachePrepStmts", "true");
             config.addDataSourceProperty("prepStmtCacheSize", "250");
             config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+            config.addDataSourceProperty("useServerPrepStmts", "true");
+            config.addDataSourceProperty("useLocalSessionState", "true");
+            config.addDataSourceProperty("rewriteBatchedStatements", "true");
+            config.addDataSourceProperty("cacheResultSetMetadata", "true");
+            config.addDataSourceProperty("cacheServerConfiguration", "true");
+            config.addDataSourceProperty("elideSetAutoCommits", "true");
+            config.addDataSourceProperty("maintainTimeStats", "false");
 
             dataSource = new HikariDataSource(config);
+
+            plugin.getLogger().info("§a[MySQL] Pool de conexões iniciado (20 máx / 5 mín)");
             return true;
+
         } catch (Exception e) {
             plugin.getLogger().severe("Erro na inicialização do MySQL: " + e.getMessage());
             e.printStackTrace();

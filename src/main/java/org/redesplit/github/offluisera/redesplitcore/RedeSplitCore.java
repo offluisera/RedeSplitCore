@@ -8,6 +8,7 @@ import org.redesplit.github.offluisera.redesplitcore.listeners.*;
 import org.redesplit.github.offluisera.redesplitcore.managers.*;
 import org.redesplit.github.offluisera.redesplitcore.player.*;
 import org.redesplit.github.offluisera.redesplitcore.redis.RedisManager;
+import org.redesplit.github.offluisera.redesplitcore.system.AuthSystem;
 import org.redesplit.github.offluisera.redesplitcore.tasks.*;
 import org.redesplit.github.offluisera.redesplitcore.utils.PermissionDumper;
 
@@ -19,6 +20,7 @@ public class RedeSplitCore extends JavaPlugin {
     private PermissionInjector permissionInjector;
     private VanishManager vanishManager;
     private RedisManager redisManager;
+    private AuthSystem authSystem; // ✅ NOVO - Sistema de Login
     private String serverId;
     private boolean restarting = false;
 
@@ -46,48 +48,45 @@ public class RedeSplitCore extends JavaPlugin {
 
         PermissionDumper.dump();
 
-        // 3. Inicializar REDIS (Correção da Duplicidade)
+        // ✅ 3. INICIALIZAR SISTEMA DE AUTENTICAÇÃO (ANTES DO REDIS E PLAYERS)
+        this.authSystem = new AuthSystem(this);
+        getLogger().info("§a[Auth] Sistema de Login ativado!");
+
+        // 4. Inicializar REDIS
         getLogger().info("Iniciando conexão com Redis...");
         this.redisManager = new RedisManager();
         try {
-            // Apenas conecta no Pool
             this.redisManager.connect();
-
-            // Inicia o Subscriber (Apenas UMA vez aqui)
-            // this.redisManager.startSubscriber();
-
         } catch (Exception e) {
             getLogger().severe("§c[ERRO FATAL] Não foi possível iniciar o Redis!");
             e.printStackTrace();
-            // Opcional: Desativar plugin se o Redis for essencial
         }
-
 
         new StoreTask(this).runTaskTimer(this, 100L, 200L);
         getLogger().info("Sistema de Loja Ativado!");
 
-        // 4. Inicializar Gerenciadores
+        // 5. Inicializar Gerenciadores
         MotdManager.loadFromSql();
         this.playerManager = new PlayerManager();
         this.vanishManager = new VanishManager(this);
         this.permissionInjector = new PermissionInjector();
 
-        // 5. Tarefas de Economia e Stats
+        // 6. Tarefas de Economia e Stats
         Bukkit.getScheduler().runTaskTimer(this, new EconomyTask(this), 400L, 72000L);
-        new ServerStatsTask().runTaskTimer(this, 60L, 60L);
+        new ServerStatsTask().runTaskTimer(this, 200, 200);
         getLogger().info("Sistema de ServerStats RedeSplit Ativado!");
         new ReferralTask().runTaskTimer(this, 1200L, 1200L);
         getLogger().info("Sistema de Referal RedeSplit Ativado!");
         new PermissionCleanupTask().runTaskTimer(this, 1200L, 6000L);
-        new DeliveryTask(mySQL).runTaskTimerAsynchronously(this, 100L, 400L);
+        new DeliveryTask(mySQL).runTaskTimerAsynchronously(this, 100L, 600L);
         getLogger().info("Sistema de Entregas RedeSplit Ativado!");
 
-        // 6. Registrar Comandos
+        // 7. Registrar Comandos
         registerCommands();
         getLogger().info("Sistema de Comandos ativado!");
 
-        // 7. Registrar Eventos
-        registerEvents(); // Verifique se não há duplicidade dentro deste método também
+        // 8. Registrar Eventos
+        registerEvents();
         getLogger().info("Sistema de Eventos ativado!");
 
         getLogger().info("§a[RedeSplitCore] Plugin inicializado com sucesso!");
@@ -98,19 +97,16 @@ public class RedeSplitCore extends JavaPlugin {
         // Salvar jogadores online
         if (playerManager != null) {
             getLogger().info("§e[RedeSplitCore] Salvando dados de jogadores...");
-            // Adicione logica de salvamento aqui se tiver
         }
 
-        // 1. Desliga o Subscriber (Para a thread fantasma)
+        // 1. Desliga o Subscriber
         if (this.redisManager != null) {
             redisManager.stopSubscriber();
             getLogger().info("Redis Subscriber encerrado.");
-
-            // 2. Fecha a conexão do Pool
             this.redisManager.disconnect();
         }
 
-        // 3. Fecha MySQL
+        // 2. Fecha MySQL
         if (mySQL != null) {
             mySQL.close();
         }
@@ -118,33 +114,42 @@ public class RedeSplitCore extends JavaPlugin {
         getLogger().info("§c[RedeSplitCore] Plugin desativado.");
     }
 
-
     // --- Métodos Auxiliares ---
 
     private void registerCommands() {
+        // ✅ NOVO - Comandos de Autenticação
+        AuthCommands authCmd = new AuthCommands(authSystem);
+        getCommand("login").setExecutor(authCmd);
+        getCommand("logar").setExecutor(authCmd);
+        getCommand("register").setExecutor(authCmd);
+        getCommand("registrar").setExecutor(authCmd);
+        getCommand("changepassword").setExecutor(authCmd);
+        getCommand("trocarsenha").setExecutor(authCmd);
+
+        // Comandos de Economia
         EconomyCommands ecoCmd = new EconomyCommands();
         getCommand("money").setExecutor(ecoCmd);
         getCommand("pay").setExecutor(ecoCmd);
         getCommand("eco").setExecutor(ecoCmd);
         getCommand("cash").setExecutor(ecoCmd);
+
+        // Comandos Diversos
         getCommand("ativar").setExecutor(new KeyCommand());
         getCommand("check").setExecutor(new CheckCommand());
         getCommand("ranks").setExecutor(new RanksCommand());
         getCommand("setparent").setExecutor(new SetParentCommand());
         getCommand("permhelp").setExecutor(new PermHelpCommand());
-
         getCommand("vanish").setExecutor(new VanishCommand());
         getCommand("sc").setExecutor(new StaffChatCommand());
         getCommand("votar").setExecutor(new VoteCommand());
         getCommand("medalha").setExecutor(new MedalhaCommand());
         getCommand("indique").setExecutor(new ReferralCommand());
-
-        // Comando essencial para o sistema de anúncios VIP
         getCommand("rsanuncio").setExecutor(new AnuncioCommand());
 
+        // Comandos de Punição
         PunishCommands punishExecutor = new PunishCommands();
         getCommand("ban").setExecutor(punishExecutor);
-        getCommand("tempban").setExecutor(punishExecutor); // Aponta para o mesmo lugar
+        getCommand("tempban").setExecutor(punishExecutor);
         getCommand("mute").setExecutor(punishExecutor);
         getCommand("tempmute").setExecutor(punishExecutor);
         getCommand("kick").setExecutor(punishExecutor);
@@ -153,6 +158,7 @@ public class RedeSplitCore extends JavaPlugin {
         getCommand("pardon").setExecutor(punishExecutor);
         getCommand("report").setExecutor(new ReportCommand());
 
+        // Comandos de Rank
         RankCommands rankCmd = new RankCommands();
         getCommand("setrank").setExecutor(rankCmd);
         getCommand("rank").setExecutor(rankCmd);
@@ -161,7 +167,10 @@ public class RedeSplitCore extends JavaPlugin {
     }
 
     private void registerEvents() {
-        // Garante que cada listener seja registrado apenas uma vez
+        // ✅ NOVO - Listener de Autenticação (DEVE VIR PRIMEIRO)
+        getServer().getPluginManager().registerEvents(new AuthListener(this, authSystem), this);
+
+        // Listeners Existentes
         getServer().getPluginManager().registerEvents(new ChatListener(), this);
         getServer().getPluginManager().registerEvents(new RestartListener(), this);
         getServer().getPluginManager().registerEvents(new MotdListener(), this);
@@ -181,6 +190,7 @@ public class RedeSplitCore extends JavaPlugin {
     public VanishManager getVanishManager() { return vanishManager; }
     public PermissionInjector getPermissionInjector() { return permissionInjector; }
     public RedisManager getRedisManager() { return redisManager; }
+    public AuthSystem getAuthSystem() { return authSystem; } // ✅ NOVO
 
     public boolean isRestarting() {
         return restarting;
@@ -189,5 +199,4 @@ public class RedeSplitCore extends JavaPlugin {
     public void setRestarting(boolean restarting) {
         this.restarting = restarting;
     }
-
 }

@@ -113,3 +113,15 @@ commands:
     description: Sistema de indicação de amigos
     usage: /indique <código>
     aliases: [ referral, indicar ]
+  login:
+    description: Faz login na sua conta
+    usage: /login <senha>
+    aliases: [ logar ]
+  register:
+    description: Registra uma nova conta
+    usage: /register <senha> [email]
+    aliases: [ registrar ]
+  changepassword:
+    description: Altera sua senha
+    usage: /changepassword <senha_atual> <senha_nova>
+    aliases: [ trocarsenha, mudarsenha ]

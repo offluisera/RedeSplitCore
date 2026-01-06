@@ -2,6 +2,7 @@ package org.redesplit.github.offluisera.redesplitcore.tasks;
 
 import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.redesplit.github.offluisera.redesplitcore.RedeSplitCore;
 import org.redesplit.github.offluisera.redesplitcore.database.MySQL;
 
 import java.sql.Connection;
@@ -19,13 +20,17 @@ public class DeliveryTask extends BukkitRunnable {
 
     @Override
     public void run() {
+        Connection conn = null;
+        PreparedStatement st = null;
+        ResultSet rs = null;
+
         try {
-            Connection conn = mysql.getConnection();
+            conn = mysql.getConnection();
             if (conn == null || conn.isClosed()) return;
 
             // 1. Busca comandos pendentes (LIMIT 10 para não lagar se tiver muitos)
-            PreparedStatement st = conn.prepareStatement("SELECT * FROM rs_delivery_queue WHERE status = 'PENDING' LIMIT 10");
-            ResultSet rs = st.executeQuery();
+            st = conn.prepareStatement("SELECT * FROM rs_delivery_queue WHERE status = 'PENDING' LIMIT 10");
+            rs = st.executeQuery();
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -33,8 +38,7 @@ public class DeliveryTask extends BukkitRunnable {
                 String command = rs.getString("command");
 
                 // 2. Executa o comando na Thread Principal (OBRIGATÓRIO para evitar crash)
-                // O comando já vem pronto do PHP (ex: "give Steve diamond 64")
-                Bukkit.getScheduler().runTask(Bukkit.getPluginManager().getPlugin("SeuPluginMain"), () -> {
+                Bukkit.getScheduler().runTask(RedeSplitCore.getInstance(), () -> {
                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
                     Bukkit.getLogger().info("[RedeSplit] Executando entrega para " + player + ": " + command);
                 });
@@ -43,14 +47,16 @@ public class DeliveryTask extends BukkitRunnable {
                 PreparedStatement update = conn.prepareStatement("UPDATE rs_delivery_queue SET status = 'DELIVERED' WHERE id = ?");
                 update.setInt(1, id);
                 update.executeUpdate();
-                update.close();
+                update.close(); // ✅ Fecha o PreparedStatement
             }
-
-            rs.close();
-            st.close();
 
         } catch (SQLException e) {
             Bukkit.getLogger().warning("[RedeSplit] Erro ao buscar fila de entregas: " + e.getMessage());
+        } finally {
+            // ✅ CRÍTICO: Fecha TODOS os recursos para não vazar conexão
+            try { if (rs != null) rs.close(); } catch (Exception e) {}
+            try { if (st != null) st.close(); } catch (Exception e) {}
+            try { if (conn != null) conn.close(); } catch (Exception e) {}
         }
     }
 }
