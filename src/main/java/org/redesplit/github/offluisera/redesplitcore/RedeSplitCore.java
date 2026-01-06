@@ -9,6 +9,7 @@ import org.redesplit.github.offluisera.redesplitcore.managers.*;
 import org.redesplit.github.offluisera.redesplitcore.player.*;
 import org.redesplit.github.offluisera.redesplitcore.redis.RedisManager;
 import org.redesplit.github.offluisera.redesplitcore.system.AuthSystem;
+import org.redesplit.github.offluisera.redesplitcore.system.PasswordRecovery; // ✅ IMPORT ADICIONADO
 import org.redesplit.github.offluisera.redesplitcore.tasks.*;
 import org.redesplit.github.offluisera.redesplitcore.utils.PermissionDumper;
 
@@ -20,7 +21,8 @@ public class RedeSplitCore extends JavaPlugin {
     private PermissionInjector permissionInjector;
     private VanishManager vanishManager;
     private RedisManager redisManager;
-    private AuthSystem authSystem; // ✅ NOVO - Sistema de Login
+    private AuthSystem authSystem;
+    private PasswordRecovery passwordRecovery; // ✅ VARIÁVEL DE INSTÂNCIA ADICIONADA
     private String serverId;
     private boolean restarting = false;
 
@@ -48,11 +50,15 @@ public class RedeSplitCore extends JavaPlugin {
 
         PermissionDumper.dump();
 
-        // ✅ 3. INICIALIZAR SISTEMA DE AUTENTICAÇÃO (ANTES DO REDIS E PLAYERS)
+        // ✅ 3. INICIALIZAR SISTEMA DE AUTENTICAÇÃO
         this.authSystem = new AuthSystem(this);
         getLogger().info("§a[Auth] Sistema de Login ativado!");
 
-        // 4. Inicializar REDIS
+        // ✅ 4. INICIALIZAR SISTEMA DE RECUPERAÇÃO DE SENHA
+        this.passwordRecovery = new PasswordRecovery(this);
+        getLogger().info("§a[Auth] Sistema de Recuperação de Senha ativado!");
+
+        // 5. Inicializar REDIS
         getLogger().info("Iniciando conexão com Redis...");
         this.redisManager = new RedisManager();
         try {
@@ -65,13 +71,13 @@ public class RedeSplitCore extends JavaPlugin {
         new StoreTask(this).runTaskTimer(this, 100L, 200L);
         getLogger().info("Sistema de Loja Ativado!");
 
-        // 5. Inicializar Gerenciadores
+        // 6. Inicializar Gerenciadores
         MotdManager.loadFromSql();
         this.playerManager = new PlayerManager();
         this.vanishManager = new VanishManager(this);
         this.permissionInjector = new PermissionInjector();
 
-        // 6. Tarefas de Economia e Stats
+        // 7. Tarefas de Economia e Stats
         Bukkit.getScheduler().runTaskTimer(this, new EconomyTask(this), 400L, 72000L);
         new ServerStatsTask().runTaskTimer(this, 200, 200);
         getLogger().info("Sistema de ServerStats RedeSplit Ativado!");
@@ -81,11 +87,11 @@ public class RedeSplitCore extends JavaPlugin {
         new DeliveryTask(mySQL).runTaskTimerAsynchronously(this, 100L, 600L);
         getLogger().info("Sistema de Entregas RedeSplit Ativado!");
 
-        // 7. Registrar Comandos
+        // 8. Registrar Comandos
         registerCommands();
         getLogger().info("Sistema de Comandos ativado!");
 
-        // 8. Registrar Eventos
+        // 9. Registrar Eventos
         registerEvents();
         getLogger().info("Sistema de Eventos ativado!");
 
@@ -117,7 +123,7 @@ public class RedeSplitCore extends JavaPlugin {
     // --- Métodos Auxiliares ---
 
     private void registerCommands() {
-        // ✅ NOVO - Comandos de Autenticação
+        // ✅ COMANDOS DE AUTENTICAÇÃO
         AuthCommands authCmd = new AuthCommands(authSystem);
         getCommand("login").setExecutor(authCmd);
         getCommand("logar").setExecutor(authCmd);
@@ -125,6 +131,9 @@ public class RedeSplitCore extends JavaPlugin {
         getCommand("registrar").setExecutor(authCmd);
         getCommand("changepassword").setExecutor(authCmd);
         getCommand("trocarsenha").setExecutor(authCmd);
+
+        // ✅ COMANDO DE RECUPERAÇÃO DE SENHA
+        getCommand("recovery").setExecutor(new RecoveryCommand(passwordRecovery));
 
         // Comandos de Economia
         EconomyCommands ecoCmd = new EconomyCommands();
@@ -167,7 +176,7 @@ public class RedeSplitCore extends JavaPlugin {
     }
 
     private void registerEvents() {
-        // ✅ NOVO - Listener de Autenticação (DEVE VIR PRIMEIRO)
+        // ✅ Listener de Autenticação (DEVE VIR PRIMEIRO)
         getServer().getPluginManager().registerEvents(new AuthListener(this, authSystem), this);
 
         // Listeners Existentes
@@ -190,7 +199,8 @@ public class RedeSplitCore extends JavaPlugin {
     public VanishManager getVanishManager() { return vanishManager; }
     public PermissionInjector getPermissionInjector() { return permissionInjector; }
     public RedisManager getRedisManager() { return redisManager; }
-    public AuthSystem getAuthSystem() { return authSystem; } // ✅ NOVO
+    public AuthSystem getAuthSystem() { return authSystem; }
+    public PasswordRecovery getPasswordRecovery() { return passwordRecovery; } // ✅ GETTER ADICIONADO
 
     public boolean isRestarting() {
         return restarting;

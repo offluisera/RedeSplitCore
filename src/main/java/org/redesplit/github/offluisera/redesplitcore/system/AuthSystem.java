@@ -3,15 +3,15 @@ package org.redesplit.github.offluisera.redesplitcore.system;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.redesplit.github.offluisera.redesplitcore.RedeSplitCore;
+import org.redesplit.github.offluisera.redesplitcore.utils.PasswordHasher;
 
-import java.security.MessageDigest;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Sistema de Autenticação RedeSplit
- * Inspirado no nLogin, mas com recursos modernos
+ * Versão 2.0 - Com PasswordHasher Seguro
  */
 public class AuthSystem {
 
@@ -43,18 +43,19 @@ public class AuthSystem {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = plugin.getMySQL().getConnection()) {
 
-                // Tabela principal de contas
                 Statement st = conn.createStatement();
+
+                // Tabela principal de contas
                 st.executeUpdate(
                         "CREATE TABLE IF NOT EXISTS rs_auth_accounts (" +
                                 "uuid VARCHAR(36) PRIMARY KEY," +
                                 "username VARCHAR(16) NOT NULL," +
-                                "password_hash VARCHAR(64) NOT NULL," +
+                                "password_hash VARCHAR(128) NOT NULL," + // ✅ Aumentado para 128 (suporta BCrypt/PBKDF2)
                                 "email VARCHAR(100) DEFAULT NULL," +
                                 "last_ip VARCHAR(45)," +
                                 "registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
                                 "last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
-                                "premium TINYINT(1) DEFAULT 0," + // Para contas originais
+                                "premium TINYINT(1) DEFAULT 0," +
                                 "INDEX (username)" +
                                 ")"
                 );
@@ -77,7 +78,7 @@ public class AuthSystem {
                                 "id INT AUTO_INCREMENT PRIMARY KEY," +
                                 "uuid VARCHAR(36) NOT NULL," +
                                 "username VARCHAR(16) NOT NULL," +
-                                "action VARCHAR(20) NOT NULL," + // LOGIN, REGISTER, LOGOUT, FAILED_LOGIN
+                                "action VARCHAR(20) NOT NULL," +
                                 "ip_address VARCHAR(45)," +
                                 "success TINYINT(1) DEFAULT 1," +
                                 "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
@@ -102,7 +103,7 @@ public class AuthSystem {
     }
 
     /**
-     * Verifica se o jogador está registrado
+     * Verifica se o jogador está registrado (ASYNC-SAFE)
      */
     public boolean isRegistered(UUID uuid) {
         Connection conn = null;
@@ -119,7 +120,6 @@ public class AuthSystem {
             plugin.getLogger().warning("§c[Auth] Erro ao verificar registro de " + uuid + ": " + e.getMessage());
             return false;
         } finally {
-            // IMPORTANTE: Fecha recursos para não vazar conexões
             try { if (rs != null) rs.close(); } catch (Exception e) {}
             try { if (ps != null) ps.close(); } catch (Exception e) {}
             try { if (conn != null) conn.close(); } catch (Exception e) {}
@@ -127,15 +127,21 @@ public class AuthSystem {
     }
 
     /**
-     * Registra um novo jogador
+     * Registra um novo jogador (COM PASSWORDHASHER)
      */
     public boolean register(Player player, String password, String email) {
-        if (password.length() < 6) {
-            player.sendMessage("§c§lERRO: §cA senha deve ter no mínimo 6 caracteres!");
+        // ✅ VALIDAÇÃO DE SENHA FORTE
+        if (!PasswordHasher.isStrongPassword(password)) {
+            player.sendMessage("§c§lERRO: §cSenha muito fraca!");
+            player.sendMessage("§eUse pelo menos 8 caracteres com:");
+            player.sendMessage("§7• Letras maiúsculas e minúsculas");
+            player.sendMessage("§7• Números");
+            player.sendMessage("§7• Símbolos (!@#$%)");
             return false;
         }
 
-        String hashedPassword = hashPassword(password);
+        // ✅ HASH SEGURO COM SALT
+        String hashedPassword = PasswordHasher.hash(password);
         String ip = player.getAddress().getAddress().getHostAddress();
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
@@ -189,7 +195,7 @@ public class AuthSystem {
     }
 
     /**
-     * Realiza o login do jogador
+     * Realiza o login do jogador (COM PASSWORDHASHER)
      */
     public void login(Player player, String password) {
         String ip = player.getAddress().getAddress().getHostAddress();
@@ -210,9 +216,9 @@ public class AuthSystem {
                 }
 
                 String storedHash = rs.getString("password_hash");
-                String inputHash = hashPassword(password);
 
-                if (!storedHash.equals(inputHash)) {
+                // ✅ VERIFICAÇÃO SEGURA COM PASSWORDHASHER
+                if (!PasswordHasher.verify(password, storedHash)) {
                     // Senha incorreta
                     int attempts = loginAttempts.getOrDefault(player.getUniqueId(), 0) + 1;
                     loginAttempts.put(player.getUniqueId(), attempts);
@@ -356,7 +362,7 @@ public class AuthSystem {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
-        }, 6000L, 6000L); // A cada 5 minutos
+        }, 6000L, 6000L);
     }
 
     /**
@@ -382,31 +388,12 @@ public class AuthSystem {
     }
 
     /**
-     * Gera hash SHA-256 da senha
-     */
-    private String hashPassword(String password) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(password.getBytes());
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    /**
-     * Altera a senha de um jogador
+     * Altera a senha de um jogador (COM PASSWORDHASHER)
      */
     public void changePassword(Player player, String oldPassword, String newPassword) {
-        if (newPassword.length() < 6) {
-            player.sendMessage("§c§lERRO: §cA nova senha deve ter no mínimo 6 caracteres!");
+        if (!PasswordHasher.isStrongPassword(newPassword)) {
+            player.sendMessage("§c§lERRO: §cA nova senha é muito fraca!");
+            player.sendMessage("§eUse pelo menos 8 caracteres com letras, números e símbolos.");
             return;
         }
 
@@ -426,16 +413,21 @@ public class AuthSystem {
                 }
 
                 String storedHash = rs.getString("password_hash");
-                if (!storedHash.equals(hashPassword(oldPassword))) {
+
+                // ✅ VERIFICAÇÃO SEGURA
+                if (!PasswordHasher.verify(oldPassword, storedHash)) {
                     player.sendMessage("§c§lERRO: §cSenha atual incorreta!");
                     return;
                 }
+
+                // ✅ HASH SEGURO DA NOVA SENHA
+                String newHash = PasswordHasher.hash(newPassword);
 
                 // Atualiza senha
                 PreparedStatement update = conn.prepareStatement(
                         "UPDATE rs_auth_accounts SET password_hash = ? WHERE uuid = ?"
                 );
-                update.setString(1, hashPassword(newPassword));
+                update.setString(1, newHash);
                 update.setString(2, player.getUniqueId().toString());
                 update.executeUpdate();
 
