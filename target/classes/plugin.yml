@@ -125,3 +125,11 @@ commands:
     description: Altera sua senha
     usage: /changepassword <senha_atual> <senha_nova>
     aliases: [ trocarsenha, mudarsenha ]
+  recovery:
+    description: Recupera sua senha usando email cadastrado
+    usage: /recovery request <email> ou /recovery <codigo> <nova_senha>
+    aliases: [ recuperar, recuperarsenha ]
+  vinculardc:
+    description: Vincula sua conta ao Discord
+    usage: /vinculardc
+    aliases: [ linkdc, linkardc, discordlink ]

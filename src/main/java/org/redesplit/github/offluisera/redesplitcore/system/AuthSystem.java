@@ -60,6 +60,17 @@ public class AuthSystem {
                                 ")"
                 );
 
+                try {
+                    st.executeUpdate(
+                            "ALTER TABLE rs_auth_accounts " +
+                                    "MODIFY COLUMN password_hash VARCHAR(128) NOT NULL"
+                    );
+                    plugin.getLogger().info("§a[Auth] Coluna password_hash atualizada para 128 caracteres.");
+                } catch (SQLException e) {
+                    // Ignora se a coluna já está no tamanho correto
+                }
+
+
                 // Tabela de sessões ativas
                 st.executeUpdate(
                         "CREATE TABLE IF NOT EXISTS rs_auth_sessions (" +

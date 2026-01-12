@@ -210,6 +210,21 @@ public class MySQL {
                     "date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
                     "FOREIGN KEY (uuid) REFERENCES rs_players(uuid) ON DELETE CASCADE)"); // Adicionado FK
 
+            // Tabela de vinculação Discord
+            st.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS rs_discord_links (" +
+                            "uuid VARCHAR(36) PRIMARY KEY," +
+                            "username VARCHAR(16) NOT NULL," +
+                            "discord_id VARCHAR(20) DEFAULT NULL," +
+                            "discord_tag VARCHAR(40) DEFAULT NULL," +
+                            "verification_code VARCHAR(8) DEFAULT NULL," +
+                            "code_expires_at TIMESTAMP NULL," +
+                            "linked_at TIMESTAMP NULL," +
+                            "status VARCHAR(20) DEFAULT 'PENDING'," +  // PENDING, LINKED, EXPIRED
+                            "INDEX (discord_id), INDEX (verification_code)" +
+                            ")"
+            );
+
             // --- TABELAS DE PUNIÇÕES (Corrigido para corresponder à estrutura esperada) ---
             st.executeUpdate("CREATE TABLE IF NOT EXISTS rs_punishments (" +
                     "id INT AUTO_INCREMENT PRIMARY KEY," +

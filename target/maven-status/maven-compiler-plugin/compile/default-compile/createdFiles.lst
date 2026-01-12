@@ -31,7 +31,6 @@ org\redesplit\github\offluisera\redesplitcore\player\PlayerManager.class
 org\redesplit\github\offluisera\redesplitcore\commands\PunishCommands.class
 org\redesplit\github\offluisera\redesplitcore\tasks\StoreTask$1.class
 org\redesplit\github\offluisera\redesplitcore\system\AuthSystem.class
-org\redesplit\github\offluisera\redesplitcore\system\PasswordRecovery$RecoveryCode.class
 org\redesplit\github\offluisera\redesplitcore\tasks\EconomyTask.class
 org\redesplit\github\offluisera\redesplitcore\tasks\ServerStatsTask.class
 org\redesplit\github\offluisera\redesplitcore\RedeSplitCore.class
@@ -50,9 +49,12 @@ org\redesplit\github\offluisera\redesplitcore\player\SplitPlayer.class
 org\redesplit\github\offluisera\redesplitcore\redis\RedisSubscriber.class
 org\redesplit\github\offluisera\redesplitcore\commands\ReferralCommand.class
 org\redesplit\github\offluisera\redesplitcore\utils\DiscordWebhook.class
+org\redesplit\github\offluisera\redesplitcore\commands\DiscordLinkCommand.class
+org\redesplit\github\offluisera\redesplitcore\system\PasswordRecovery$PendingRecovery.class
 org\redesplit\github\offluisera\redesplitcore\tasks\AutoMessageTask.class
 org\redesplit\github\offluisera\redesplitcore\commands\RankCommands.class
 org\redesplit\github\offluisera\redesplitcore\commands\AnuncioCommand.class
 org\redesplit\github\offluisera\redesplitcore\tasks\ReferralTask.class
 org\redesplit\github\offluisera\redesplitcore\listeners\PlayerListener.class
+org\redesplit\github\offluisera\redesplitcore\system\DiscordLinkManager.class
 org\redesplit\github\offluisera\redesplitcore\commands\CheckCommand.class

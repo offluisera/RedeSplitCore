@@ -9,9 +9,11 @@ import org.redesplit.github.offluisera.redesplitcore.managers.*;
 import org.redesplit.github.offluisera.redesplitcore.player.*;
 import org.redesplit.github.offluisera.redesplitcore.redis.RedisManager;
 import org.redesplit.github.offluisera.redesplitcore.system.AuthSystem;
+import org.redesplit.github.offluisera.redesplitcore.system.DiscordLinkManager;
 import org.redesplit.github.offluisera.redesplitcore.system.PasswordRecovery; // ✅ IMPORT ADICIONADO
 import org.redesplit.github.offluisera.redesplitcore.tasks.*;
 import org.redesplit.github.offluisera.redesplitcore.utils.PermissionDumper;
+
 
 public class RedeSplitCore extends JavaPlugin {
 
@@ -24,6 +26,7 @@ public class RedeSplitCore extends JavaPlugin {
     private AuthSystem authSystem;
     private PasswordRecovery passwordRecovery; // ✅ VARIÁVEL DE INSTÂNCIA ADICIONADA
     private String serverId;
+    private DiscordLinkManager discordLinkManager;
     private boolean restarting = false;
 
     @Override
@@ -76,6 +79,10 @@ public class RedeSplitCore extends JavaPlugin {
         this.playerManager = new PlayerManager();
         this.vanishManager = new VanishManager(this);
         this.permissionInjector = new PermissionInjector();
+
+        this.discordLinkManager = new DiscordLinkManager(this);
+        getLogger().info("§a[Discord] Sistema de vinculação ativado!");
+
 
         // 7. Tarefas de Economia e Stats
         Bukkit.getScheduler().runTaskTimer(this, new EconomyTask(this), 400L, 72000L);
@@ -134,6 +141,8 @@ public class RedeSplitCore extends JavaPlugin {
 
         // ✅ COMANDO DE RECUPERAÇÃO DE SENHA
         getCommand("recovery").setExecutor(new RecoveryCommand(passwordRecovery));
+        getCommand("vinculardc").setExecutor(new DiscordLinkCommand());
+
 
         // Comandos de Economia
         EconomyCommands ecoCmd = new EconomyCommands();
@@ -201,6 +210,7 @@ public class RedeSplitCore extends JavaPlugin {
     public RedisManager getRedisManager() { return redisManager; }
     public AuthSystem getAuthSystem() { return authSystem; }
     public PasswordRecovery getPasswordRecovery() { return passwordRecovery; } // ✅ GETTER ADICIONADO
+    public DiscordLinkManager getDiscordLinkManager() {return discordLinkManager;}
 
     public boolean isRestarting() {
         return restarting;
