@@ -38,6 +38,17 @@ public class RedisSubscriber extends JedisPubSub {
                 return;
             }
 
+            // --- ⭐ CASO 4: SISTEMA DE ENQUETES (NOVO) ---
+            if (message.startsWith("POLL_START|")) {
+               handlePollStart(message);
+                  return;
+            }
+
+            if (message.startsWith("POLL_STOP|")) {
+                handlePollStop(message);
+                return;
+            }
+
             // --- CASO 4: COMANDOS DE REDE (Ban, Kick, etc) ---
             if (message.contains(";")) {
                 handleCommand(message);
@@ -67,6 +78,62 @@ public class RedisSubscriber extends JedisPubSub {
             }
         });
     }
+
+    // ========================================
+    // ⭐ HANDLERS DE ENQUETE
+    // ========================================
+
+    /**
+     * Formato: POLL_START|{pollId}|{question}|{option1}|{option2}
+     * Exemplo: POLL_START|7|Qual servidor lançar?|Bedwars|SkyWars
+     */
+    private void handlePollStart(String message) {
+        try {
+            String[] parts = message.split("\\|");
+            if (parts.length < 5) {
+                RedeSplitCore.getInstance().getLogger().warning("§c[Redis] POLL_START com formato inválido (esperado 5 partes, recebeu " + parts.length + ")");
+                RedeSplitCore.getInstance().getLogger().warning("§c[Redis] Mensagem: " + message);
+                return;
+            }
+
+            int pollId = Integer.parseInt(parts[1]);
+            String question = parts[2];
+            String option1 = parts[3];
+            String option2 = parts[4];
+
+            java.util.List<String> options = java.util.Arrays.asList(option1, option2);
+
+            org.redesplit.github.offluisera.redesplitcore.managers.PollManager.startPoll(pollId, question, options);
+
+            RedeSplitCore.getInstance().getLogger().info("§a[Redis] ✓ Enquete iniciada: #" + pollId + " - " + question);
+
+        } catch (NumberFormatException e) {
+            RedeSplitCore.getInstance().getLogger().severe("§c[Redis] ID da enquete inválido: " + message);
+        } catch (Exception e) {
+            RedeSplitCore.getInstance().getLogger().severe("§c[Redis] Erro ao iniciar enquete: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Formato: POLL_STOP|{admin}
+     * Exemplo: POLL_STOP|offluisera
+     */
+    private void handlePollStop(String message) {
+        try {
+            String[] parts = message.split("\\|");
+            String admin = parts.length > 1 ? parts[1] : "Admin";
+
+            org.redesplit.github.offluisera.redesplitcore.managers.PollManager.stopPoll();
+
+            RedeSplitCore.getInstance().getLogger().info("§a[Redis] ✓ Enquete encerrada por: " + admin);
+
+        } catch (Exception e) {
+            RedeSplitCore.getInstance().getLogger().severe("§c[Redis] Erro ao encerrar enquete: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
 
     // --- NOVA IMPLEMENTAÇÃO: TRANSFERÊNCIA DE CASH ---
     private void handleCashTransfer(String message) {
