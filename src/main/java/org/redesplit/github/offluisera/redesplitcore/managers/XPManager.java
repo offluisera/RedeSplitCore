@@ -1,5 +1,6 @@
 package org.redesplit.github.offluisera.redesplitcore.managers;
 
+import com.cryptomorin.xseries.XSound;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.redesplit.github.offluisera.redesplitcore.RedeSplitCore;
@@ -19,37 +20,53 @@ public class XPManager {
     }
 
     /**
-     * Carrega XP do banco de dados
+     * Carrega XP do banco de dados (ASSÍNCRONO)
+     * Use este quando já tiver o SplitPlayer criado
      */
     public void loadXP(SplitPlayer sp) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            try (Connection conn = plugin.getMySQL().getConnection()) {
-
-                PreparedStatement ps = conn.prepareStatement(
-                        "SELECT xp, level FROM rs_player_xp WHERE uuid = ?"
-                );
-                ps.setString(1, sp.getUuid().toString());
-                ResultSet rs = ps.executeQuery();
-
-                if (rs.next()) {
-                    long xp = rs.getLong("xp");
-                    int level = rs.getInt("level");
-
-                    sp.setXp(xp);
-                    sp.setLevel(level);
-                } else {
-                    // Cria registro inicial
-                    createXPRecord(sp);
-                }
-
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            loadXPSync(sp);
         });
     }
 
     /**
-     * Cria registro inicial de XP
+     * Carrega XP do banco de dados (SÍNCRONO)
+     * Use apenas quando já estiver em thread assíncrona
+     */
+    public void loadXPSync(SplitPlayer sp) {
+        try (Connection conn = plugin.getMySQL().getConnection()) {
+
+            PreparedStatement ps = conn.prepareStatement(
+                    "SELECT xp, level FROM rs_player_xp WHERE uuid = ?"
+            );
+            ps.setString(1, sp.getUuid().toString());
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                long xp = rs.getLong("xp");
+                int level = rs.getInt("level");
+
+                sp.setXp(xp);
+                sp.setLevel(level);
+
+                plugin.getLogger().info("§a[XP] Carregado para " + sp.getName() + ": " + xp + " XP (Nível " + level + ")");
+            } else {
+                // Cria registro inicial
+                createXPRecord(sp);
+                plugin.getLogger().info("§e[XP] Criado registro inicial para " + sp.getName());
+            }
+
+            rs.close();
+            ps.close();
+
+        } catch (SQLException e) {
+            plugin.getLogger().severe("§c[XP] Erro ao carregar XP de " + sp.getName());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Cria registro inicial de XP (já deve estar em thread assíncrona)
      */
     private void createXPRecord(SplitPlayer sp) {
         try (Connection conn = plugin.getMySQL().getConnection()) {
@@ -59,7 +76,14 @@ public class XPManager {
             ps.setString(1, sp.getUuid().toString());
             ps.setString(2, sp.getName());
             ps.executeUpdate();
+            ps.close();
+
+            // Define valores padrão
+            sp.setXp(0);
+            sp.setLevel(1);
+
         } catch (SQLException e) {
+            plugin.getLogger().severe("§c[XP] Erro ao criar registro para " + sp.getName());
             e.printStackTrace();
         }
     }
@@ -68,6 +92,8 @@ public class XPManager {
      * Salva XP no banco de dados
      */
     public void saveXP(SplitPlayer sp) {
+        if (sp == null) return;
+
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = plugin.getMySQL().getConnection()) {
 
@@ -81,8 +107,12 @@ public class XPManager {
                 ps.setLong(3, sp.getXp());
                 ps.setInt(4, sp.getLevel());
                 ps.executeUpdate();
+                ps.close();
+
+                plugin.getLogger().info("§a[XP] Salvo para " + sp.getName() + ": " + sp.getXp() + " XP (Nível " + sp.getLevel() + ")");
 
             } catch (SQLException e) {
+                plugin.getLogger().severe("§c[XP] Erro ao salvar XP de " + sp.getName());
                 e.printStackTrace();
             }
         });
@@ -93,7 +123,10 @@ public class XPManager {
      */
     public void addXP(Player player, long amount, String reason) {
         SplitPlayer sp = plugin.getPlayerManager().getPlayer(player.getUniqueId());
-        if (sp == null) return;
+        if (sp == null) {
+            player.sendMessage("§cErro: Seus dados não foram carregados!");
+            return;
+        }
 
         int oldLevel = sp.getLevel();
         sp.addXp(amount);
@@ -104,13 +137,25 @@ public class XPManager {
             player.sendMessage("");
             player.sendMessage("§6§l⬆ VOCÊ SUBIU DE NÍVEL!");
             player.sendMessage("§e  Nível: §f" + oldLevel + " §7→ §a" + newLevel);
-            player.sendMessage("§e  XP Total: §f" + sp.getXp());
+            player.sendMessage("§e  XP Total: §f" + String.format("%,d", sp.getXp()));
             player.sendMessage("");
 
-            // Som de level up
-            player.playSound(player.getLocation(), "ENTITY_PLAYER_LEVELUP", 1.0f, 1.0f);
+            // Som de level up usando XSound
+            XSound.ENTITY_PLAYER_LEVELUP.play(player, 1.0f, 1.0f);
+
+            // Efeito visual (partículas)
+            try {
+                player.getWorld().spawnParticle(
+                        org.bukkit.Particle.VILLAGER_HAPPY,
+                        player.getLocation().add(0, 1, 0),
+                        20, 0.5, 0.5, 0.5, 0.1
+                );
+            } catch (Exception e) {
+                // Fallback 1.8
+                player.playEffect(player.getLocation(), org.bukkit.Effect.HAPPY_VILLAGER, null);
+            }
         } else {
-            player.sendMessage("§a+ §e" + amount + " XP §7(" + reason + ")");
+            player.sendMessage("§a+ §e" + String.format("%,d", amount) + " XP §7(" + reason + ")");
         }
 
         // Atualiza XP visual
@@ -121,9 +166,6 @@ public class XPManager {
 
         // Log no histórico
         logXP(sp, amount, reason, "SISTEMA");
-
-        // Publica no Redis
-        publishXPUpdate(sp);
     }
 
     /**
@@ -131,15 +173,17 @@ public class XPManager {
      */
     public void removeXP(Player player, long amount, String reason) {
         SplitPlayer sp = plugin.getPlayerManager().getPlayer(player.getUniqueId());
-        if (sp == null) return;
+        if (sp == null) {
+            player.sendMessage("§cErro: Seus dados não foram carregados!");
+            return;
+        }
 
         sp.removeXp(amount);
-        player.sendMessage("§c- §e" + amount + " XP §7(" + reason + ")");
+        player.sendMessage("§c- §e" + String.format("%,d", amount) + " XP §7(" + reason + ")");
 
         updateXPBar(player, sp);
         saveXP(sp);
         logXP(sp, -amount, reason, "SISTEMA");
-        publishXPUpdate(sp);
     }
 
     /**
@@ -147,31 +191,40 @@ public class XPManager {
      */
     public void setXP(Player player, long amount, String operator) {
         SplitPlayer sp = plugin.getPlayerManager().getPlayer(player.getUniqueId());
-        if (sp == null) return;
+        if (sp == null) {
+            player.sendMessage("§cErro: Dados do jogador não foram carregados!");
+            return;
+        }
 
         sp.setXp(amount);
         player.sendMessage("§e§lXP DEFINIDO!");
-        player.sendMessage("§e  XP: §f" + amount);
+        player.sendMessage("§e  XP: §f" + String.format("%,d", amount));
         player.sendMessage("§e  Nível: §f" + sp.getLevel());
 
         updateXPBar(player, sp);
         saveXP(sp);
         logXP(sp, amount, "XP definido por " + operator, operator);
-        publishXPUpdate(sp);
     }
 
     /**
      * Atualiza a barra de XP visual do jogador
      */
     public void updateXPBar(Player player, SplitPlayer sp) {
-        // Calcula progresso para próximo nível
-        double progress = sp.getProgressToNextLevel() / 100.0;
+        if (player == null || !player.isOnline() || sp == null) return;
 
-        // Define level visual
-        player.setLevel(sp.getLevel());
+        try {
+            // Calcula progresso para próximo nível
+            double progress = sp.getProgressToNextLevel() / 100.0;
 
-        // Define progresso visual (0.0 a 1.0)
-        player.setExp((float) Math.min(1.0, Math.max(0.0, progress)));
+            // Define level visual
+            player.setLevel(sp.getLevel());
+
+            // Define progresso visual (0.0 a 1.0)
+            player.setExp((float) Math.min(1.0, Math.max(0.0, progress)));
+
+        } catch (Exception e) {
+            plugin.getLogger().warning("§c[XP] Erro ao atualizar barra de XP de " + player.getName());
+        }
     }
 
     /**
@@ -190,27 +243,21 @@ public class XPManager {
                 ps.setString(4, reason);
                 ps.setString(5, operator);
                 ps.executeUpdate();
+                ps.close();
             } catch (SQLException e) {
+                plugin.getLogger().warning("§c[XP] Erro ao registrar log de XP");
                 e.printStackTrace();
             }
         });
     }
 
     /**
-     * Publica atualização de XP no Redis
-     */
-    private void publishXPUpdate(SplitPlayer sp) {
-        if (plugin.getRedisManager() != null) {
-            String message = sp.getUuid() + ":" + sp.getXp() + ":" + sp.getLevel();
-            plugin.getRedisManager().publish("xp-update", message);
-        }
-    }
-
-    /**
      * Retorna o símbolo do nível
      */
     public static String getLevelBadge(int level) {
-        if (level >= 11) {
+        if (level >= 21) {
+            return "§d§l[" + level + " ✦]"; // Níveis 21+: Rosa/Magenta brilhante
+        } else if (level >= 11) {
             return "§b[" + level + " ✦]"; // Níveis 11-20: Azul com estrela diamante
         } else if (level >= 1) {
             return "§e[" + level + " ★]"; // Níveis 1-10: Amarelo com estrela

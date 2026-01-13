@@ -143,3 +143,14 @@ commands:
     description: Gerenciar tags dos jogadores
     usage: /tag <reload|update|list>
     permission: redesplitcore.admin
+  xp:
+    description: Ver e gerenciar XP
+    usage: /xp [add|remove|set] [jogador] [quantidade]
+    permission: redesplitcore.xp.use
+permissions:
+  redesplitcore.xp.use:
+    description: Usar o comando /xp
+    default: true
+  redesplitcore.xp.admin:
+    description: Gerenciar XP de outros jogadores
+    default: op

@@ -8,6 +8,7 @@ C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\off
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\tasks\EconomyTask.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\commands\KeyCommand.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\commands\PunishCommands.java
+C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\commands\XPCommand.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\redis\RedisSubscriber.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\managers\MuteManager.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\utils\TimeUtils.java
@@ -53,6 +54,7 @@ C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\off
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\tasks\PermissionCleanupTask.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\commands\AuthCommands.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\commands\DiscordLinkCommand.java
+C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\managers\XPManager.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\tasks\DeliveryTask.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\tasks\PlaytimeTask.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\player\PermissionInjector.java

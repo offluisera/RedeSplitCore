@@ -34,6 +34,10 @@ public class PlayerManager {
         SplitPlayer sp = getPlayer(uuid);
         if (sp != null) {
             savePlayer(sp);
+
+            // ⭐ SALVA XP ANTES DE DESCARREGAR
+            RedeSplitCore.getInstance().getXPManager().saveXP(sp);
+
             removePlayer(uuid);
         }
     }
@@ -63,6 +67,9 @@ public class PlayerManager {
                     // --- CARREGA PUNIÇÕES ATIVAS (MUTE) ---
                     loadActiveMute(conn, sp);
 
+                    // ⭐ CARREGA XP (NOVO)
+                    loadXP(conn, sp);
+
                     // 2. Busca Específica (Se não for Lobby)
                     if (!isLobby) {
                         String tableName = getTableName(serverId);
@@ -87,6 +94,14 @@ public class PlayerManager {
                     addPlayer(uuid, sp);
                     loadPermissions(uuid);
 
+                    // ⭐ ATUALIZA BARRA DE XP VISUAL (SYNC)
+                    Bukkit.getScheduler().runTask(RedeSplitCore.getInstance(), () -> {
+                        Player player = Bukkit.getPlayer(uuid);
+                        if (player != null) {
+                            RedeSplitCore.getInstance().getXPManager().updateXPBar(player, sp);
+                        }
+                    });
+
                 } else {
                     createPlayerGlobal(uuid, name);
                 }
@@ -96,11 +111,57 @@ public class PlayerManager {
         });
     }
 
-    // --- NOVO: CARREGA MUTE ATIVO DO BANCO ---
-    // Substitua o método antigo loadActiveMute por este:
+    // ⭐ NOVO MÉTODO: CARREGA XP DO BANCO
+    private void loadXP(Connection conn, SplitPlayer sp) {
+        try {
+            PreparedStatement ps = conn.prepareStatement(
+                    "SELECT xp, level FROM rs_player_xp WHERE uuid = ?"
+            );
+            ps.setString(1, sp.getUuid().toString());
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                long xp = rs.getLong("xp");
+                int level = rs.getInt("level");
+
+                sp.setXp(xp);
+                sp.setLevel(level);
+
+                RedeSplitCore.getInstance().getLogger().info(
+                        "§a[XP] Carregado para " + sp.getName() + ": " + xp + " XP (Nível " + level + ")"
+                );
+            } else {
+                // Cria registro inicial
+                PreparedStatement psCreate = conn.prepareStatement(
+                        "INSERT INTO rs_player_xp (uuid, player_name, xp, level) VALUES (?, ?, 0, 1)"
+                );
+                psCreate.setString(1, sp.getUuid().toString());
+                psCreate.setString(2, sp.getName());
+                psCreate.executeUpdate();
+                psCreate.close();
+
+                sp.setXp(0);
+                sp.setLevel(1);
+
+                RedeSplitCore.getInstance().getLogger().info(
+                        "§e[XP] Criado registro inicial para " + sp.getName()
+                );
+            }
+
+            rs.close();
+            ps.close();
+
+        } catch (SQLException e) {
+            RedeSplitCore.getInstance().getLogger().severe(
+                    "§c[XP] Erro ao carregar XP de " + sp.getName()
+            );
+            e.printStackTrace();
+        }
+    }
+
+    // --- CARREGA MUTE ATIVO DO BANCO ---
     private void loadActiveMute(Connection conn, SplitPlayer sp) {
         try {
-            // Agora selecionamos também 'reason' e 'operator'
             PreparedStatement ps = conn.prepareStatement(
                     "SELECT expires, reason, operator FROM rs_punishments WHERE player_name = ? AND type = 'MUTE' AND active = 1 AND expires > NOW() ORDER BY id DESC LIMIT 1"
             );
@@ -111,8 +172,8 @@ public class PlayerManager {
                 java.sql.Timestamp ts = rs.getTimestamp("expires");
                 if (ts != null) {
                     sp.setMuteExpires(ts.getTime());
-                    sp.setMuteReason(rs.getString("reason"));      // Salva motivo
-                    sp.setMuteOperator(rs.getString("operator"));  // Salva staff
+                    sp.setMuteReason(rs.getString("reason"));
+                    sp.setMuteOperator(rs.getString("operator"));
                 }
             } else {
                 sp.setMuteExpires(0);
@@ -135,8 +196,6 @@ public class PlayerManager {
         Bukkit.getScheduler().runTaskAsynchronously(RedeSplitCore.getInstance(), () -> {
             try (Connection conn = RedeSplitCore.getInstance().getMySQL().getConnection()) {
                 loadActiveMute(conn, sp);
-                // Opcional: Avisar no console que atualizou
-                // RedeSplitCore.getInstance().getLogger().info("Punições atualizadas para " + playerName);
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -180,6 +239,45 @@ public class PlayerManager {
         });
     }
 
+    // ⭐ NOVO: CHAMADO PELO REDIS PARA ATUALIZAR XP SEM RELOGAR
+    public void refreshXP(UUID uuid) {
+        SplitPlayer sp = getPlayer(uuid);
+        if (sp == null) return;
+
+        Bukkit.getScheduler().runTaskAsynchronously(RedeSplitCore.getInstance(), () -> {
+            try (Connection conn = RedeSplitCore.getInstance().getMySQL().getConnection()) {
+
+                PreparedStatement ps = conn.prepareStatement(
+                        "SELECT xp, level FROM rs_player_xp WHERE uuid = ?"
+                );
+                ps.setString(1, uuid.toString());
+                ResultSet rs = ps.executeQuery();
+
+                if (rs.next()) {
+                    long newXP = rs.getLong("xp");
+                    int newLevel = rs.getInt("level");
+
+                    // Atualiza na thread principal
+                    Bukkit.getScheduler().runTask(RedeSplitCore.getInstance(), () -> {
+                        sp.setXp(newXP);
+                        sp.setLevel(newLevel);
+
+                        Player player = Bukkit.getPlayer(uuid);
+                        if (player != null) {
+                            RedeSplitCore.getInstance().getXPManager().updateXPBar(player, sp);
+                        }
+                    });
+                }
+
+                rs.close();
+                ps.close();
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
     private void createPlayerGlobal(UUID uuid, String name) {
         try (Connection conn = RedeSplitCore.getInstance().getMySQL().getConnection()) {
             PreparedStatement ps = conn.prepareStatement(
@@ -190,6 +288,19 @@ public class PlayerManager {
             ps.executeUpdate();
 
             SplitPlayer sp = new SplitPlayer(uuid, name, "membro", 0.0, 0.0);
+
+            // ⭐ CRIA REGISTRO DE XP PARA NOVO JOGADOR
+            PreparedStatement psXP = conn.prepareStatement(
+                    "INSERT INTO rs_player_xp (uuid, player_name, xp, level) VALUES (?, ?, 0, 1)"
+            );
+            psXP.setString(1, uuid.toString());
+            psXP.setString(2, name);
+            psXP.executeUpdate();
+            psXP.close();
+
+            sp.setXp(0);
+            sp.setLevel(1);
+
             addPlayer(uuid, sp);
 
             String serverId = RedeSplitCore.getInstance().getServerId();
@@ -197,7 +308,9 @@ public class PlayerManager {
                 createGameData(conn, getTableName(serverId), uuid, name);
             }
             loadPermissions(uuid);
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     private void createGameData(Connection conn, String table, UUID uuid, String name) throws SQLException {
@@ -238,7 +351,9 @@ public class PlayerManager {
                         psGame.executeUpdate();
                     }
                 }
-            } catch (SQLException e) { e.printStackTrace(); }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         });
     }
 
@@ -283,7 +398,9 @@ public class PlayerManager {
                         RedeSplitCore.getInstance().getPermissionInjector().inject(player, sp.getPermissions());
                     }
                 });
-            } catch (SQLException e) { e.printStackTrace(); }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         });
     }
 
