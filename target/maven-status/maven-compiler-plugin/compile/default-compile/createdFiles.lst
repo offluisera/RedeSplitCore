@@ -20,12 +20,14 @@ org\redesplit\github\offluisera\redesplitcore\redis\RedisListener.class
 org\redesplit\github\offluisera\redesplitcore\listeners\ConnectionListener.class
 org\redesplit\github\offluisera\redesplitcore\tasks\StoreTask$1$1.class
 org\redesplit\github\offluisera\redesplitcore\tasks\StoreTask.class
+org\redesplit\github\offluisera\redesplitcore\commands\PlaceholderTestCommand.class
 org\redesplit\github\offluisera\redesplitcore\tasks\DeliveryTask.class
 org\redesplit\github\offluisera\redesplitcore\tasks\RankExpirationTask.class
 org\redesplit\github\offluisera\redesplitcore\listeners\PunishmentListener.class
 org\redesplit\github\offluisera\redesplitcore\commands\VanishCommand.class
 org\redesplit\github\offluisera\redesplitcore\utils\PasswordHasher.class
 org\redesplit\github\offluisera\redesplitcore\commands\StaffChatCommand.class
+org\redesplit\github\offluisera\redesplitcore\api\PlaceholderAPI.class
 org\redesplit\github\offluisera\redesplitcore\listeners\AuthListener$1.class
 org\redesplit\github\offluisera\redesplitcore\player\PlayerManager.class
 org\redesplit\github\offluisera\redesplitcore\commands\PunishCommands.class
@@ -44,6 +46,7 @@ org\redesplit\github\offluisera\redesplitcore\tasks\PermissionCleanupTask.class
 org\redesplit\github\offluisera\redesplitcore\listeners\ChatListener.class
 org\redesplit\github\offluisera\redesplitcore\managers\PollManager.class
 org\redesplit\github\offluisera\redesplitcore\managers\VanishManager.class
+org\redesplit\github\offluisera\redesplitcore\commands\TagCommand.class
 org\redesplit\github\offluisera\redesplitcore\commands\RanksCommand.class
 org\redesplit\github\offluisera\redesplitcore\player\SplitPlayer.class
 org\redesplit\github\offluisera\redesplitcore\redis\RedisSubscriber.class

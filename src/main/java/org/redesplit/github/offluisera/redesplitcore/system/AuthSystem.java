@@ -41,16 +41,29 @@ public class AuthSystem {
      */
     private void createTables() {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            try (Connection conn = plugin.getMySQL().getConnection()) {
+            // === VERIFICAÇÃO ===
+            if (plugin.isShuttingDown()) {
+                return;
+            }
 
-                Statement st = conn.createStatement();
+            if (!plugin.getMySQL().isConnected()) {
+                plugin.getLogger().warning("§c[Auth] MySQL não conectado!");
+                return;
+            }
 
-                // Tabela principal de contas
+            Connection conn = null;
+            Statement st = null;
+
+            try {
+                conn = plugin.getMySQL().getConnection();
+                st = conn.createStatement();
+
+                // Tabela de contas
                 st.executeUpdate(
                         "CREATE TABLE IF NOT EXISTS rs_auth_accounts (" +
                                 "uuid VARCHAR(36) PRIMARY KEY," +
                                 "username VARCHAR(16) NOT NULL," +
-                                "password_hash VARCHAR(128) NOT NULL," + // ✅ Aumentado para 128 (suporta BCrypt/PBKDF2)
+                                "password_hash VARCHAR(128) NOT NULL," +
                                 "email VARCHAR(100) DEFAULT NULL," +
                                 "last_ip VARCHAR(45)," +
                                 "registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
@@ -60,18 +73,7 @@ public class AuthSystem {
                                 ")"
                 );
 
-                try {
-                    st.executeUpdate(
-                            "ALTER TABLE rs_auth_accounts " +
-                                    "MODIFY COLUMN password_hash VARCHAR(128) NOT NULL"
-                    );
-                    plugin.getLogger().info("§a[Auth] Coluna password_hash atualizada para 128 caracteres.");
-                } catch (SQLException e) {
-                    // Ignora se a coluna já está no tamanho correto
-                }
-
-
-                // Tabela de sessões ativas
+                // Tabela de sessões
                 st.executeUpdate(
                         "CREATE TABLE IF NOT EXISTS rs_auth_sessions (" +
                                 "id INT AUTO_INCREMENT PRIMARY KEY," +
@@ -83,7 +85,7 @@ public class AuthSystem {
                                 ")"
                 );
 
-                // Tabela de logs de autenticação
+                // Tabela de logs
                 st.executeUpdate(
                         "CREATE TABLE IF NOT EXISTS rs_auth_logs (" +
                                 "id INT AUTO_INCREMENT PRIMARY KEY," +
@@ -97,11 +99,16 @@ public class AuthSystem {
                                 ")"
                 );
 
-                plugin.getLogger().info("§a[Auth] Tabelas de autenticação carregadas!");
+                plugin.getLogger().info("§a[Auth] Tabelas criadas/verificadas!");
 
             } catch (SQLException e) {
-                plugin.getLogger().severe("§c[Auth] Erro ao criar tabelas: " + e.getMessage());
-                e.printStackTrace();
+                // Só loga se não estiver em shutdown
+                if (!plugin.isShuttingDown()) {
+                    plugin.getLogger().severe("§c[Auth] Erro ao criar tabelas: " + e.getMessage());
+                }
+            } finally {
+                try { if (st != null) st.close(); } catch (Exception e) {}
+                try { if (conn != null) conn.close(); } catch (Exception e) {}
             }
         });
     }

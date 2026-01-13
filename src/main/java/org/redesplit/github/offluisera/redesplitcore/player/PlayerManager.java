@@ -251,8 +251,11 @@ public class PlayerManager {
 
     private void loadPermissions(UUID uuid) {
         Bukkit.getScheduler().runTask(RedeSplitCore.getInstance(), () -> {
+            Player player = Bukkit.getPlayer(uuid);
             updatePermissions(Bukkit.getPlayer(uuid));
             TagManager.update(Bukkit.getPlayer(uuid));
+            TagManager.updateForPlayer(player);
+            TagManager.updateAll();
         });
     }
 

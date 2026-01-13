@@ -12,6 +12,7 @@ C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\off
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\managers\MuteManager.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\utils\TimeUtils.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\database\MySQL.java
+C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\api\PlaceholderAPI.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\player\SplitPlayer.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\player\TagManager.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\commands\VoteCommand.java
@@ -33,8 +34,10 @@ C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\off
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\managers\VanishManager.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\utils\PasswordHasher.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\listeners\AuthListener.java
+C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\commands\PlaceholderTestCommand.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\commands\AnuncioCommand.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\commands\VanishCommand.java
+C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\commands\TagCommand.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\tasks\AutoMessageTask.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\commands\RecoveryCommand.java
 C:\Users\Admin\IdeaProjects\RedeSplitCore\src\main\java\org\redesplit\github\offluisera\redesplitcore\tasks\RestartTask.java

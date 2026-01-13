@@ -15,27 +15,34 @@ public class PermissionDumper {
     public static void dump() {
         Bukkit.getScheduler().runTaskAsynchronously(RedeSplitCore.getInstance(), () -> {
 
-            // 1. Coleta todas as permissões registradas no servidor
+            // === VERIFICAÇÃO ===
+            if (RedeSplitCore.getInstance().isShuttingDown()) {
+                return;
+            }
+
+            if (!RedeSplitCore.getInstance().getMySQL().isConnected()) {
+                return;
+            }
+
+            // Coleta permissões
             Set<String> perms = new HashSet<>();
             for (Permission p : Bukkit.getPluginManager().getPermissions()) {
                 perms.add(p.getName());
             }
 
-            // Adiciona algumas permissões padrões do Bukkit/Minecraft que as vezes não aparecem
-            perms.add("minecraft.command.op");
-            perms.add("minecraft.command.ban");
-            // Adicione outras manuais se quiser
-
             if (perms.isEmpty()) return;
 
-            // 2. Salva no Banco (Batch Insert para performance)
-            try (Connection conn = RedeSplitCore.getInstance().getMySQL().getConnection()) {
+            Connection conn = null;
+            PreparedStatement ps = null;
 
-                // Limpa a tabela antiga para não ficar lixo de plugins removidos
+            try {
+                conn = RedeSplitCore.getInstance().getMySQL().getConnection();
+
+                // Limpa tabela
                 conn.createStatement().executeUpdate("TRUNCATE TABLE rs_known_permissions");
 
-                // Prepara a inserção em massa
-                PreparedStatement ps = conn.prepareStatement("INSERT INTO rs_known_permissions (permission) VALUES (?)");
+                // Insere permissões
+                ps = conn.prepareStatement("INSERT INTO rs_known_permissions (permission) VALUES (?)");
 
                 int count = 0;
                 for (String perm : perms) {
@@ -43,15 +50,24 @@ public class PermissionDumper {
                     ps.addBatch();
                     count++;
 
-                    // Executa a cada 100 registros para não sobrecarregar
-                    if (count % 100 == 0) ps.executeBatch();
+                    if (count % 100 == 0) {
+                        ps.executeBatch();
+                    }
                 }
-                ps.executeBatch(); // Executa o restante
+                ps.executeBatch();
 
-                RedeSplitCore.getInstance().getLogger().info("Dump de permissões concluído: " + count + " sugestões salvas.");
+                RedeSplitCore.getInstance().getLogger().info(
+                        "§a[Perm] Dump concluído: " + count + " permissões salvas."
+                );
 
             } catch (SQLException e) {
-                e.printStackTrace();
+                // Só loga se não estiver em shutdown
+                if (!RedeSplitCore.getInstance().isShuttingDown()) {
+                    e.printStackTrace();
+                }
+            } finally {
+                try { if (ps != null) ps.close(); } catch (Exception e) {}
+                try { if (conn != null) conn.close(); } catch (Exception e) {}
             }
         });
     }

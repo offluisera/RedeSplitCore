@@ -1,4 +1,4 @@
-package org.redesplit.github.offluisera.redesplitcore.tasks; // Ajuste para seu pacote
+package org.redesplit.github.offluisera.redesplitcore.tasks;
 
 import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -19,42 +19,77 @@ public class StoreTask extends BukkitRunnable {
 
     @Override
     public void run() {
-        // Roda de forma ASSÍNCRONA para não travar o servidor (lag)
+        // === VERIFICAÇÃO CRÍTICA ===
+        if (plugin.isShuttingDown()) {
+            return; // Para silenciosamente durante shutdown
+        }
+
+        if (!plugin.isEnabled()) {
+            return;
+        }
+
+        // Executa assíncrono
         new BukkitRunnable() {
             @Override
             public void run() {
-                try (Connection conn = plugin.getMySQL().getConnection()) { // Pega conexão fresca
-                    if (conn == null || conn.isClosed()) return;
+                // Verifica novamente antes de pegar conexão
+                if (plugin.isShuttingDown()) {
+                    return;
+                }
 
-                    // 1. Busca comandos pendentes
-                    PreparedStatement st = conn.prepareStatement("SELECT id, command FROM rs_command_queue WHERE status = 'WAITING'");
-                    ResultSet rs = st.executeQuery();
+                Connection conn = null;
+                PreparedStatement st = null;
+                ResultSet rs = null;
+
+                try {
+                    // Verifica se MySQL está conectado
+                    if (!plugin.getMySQL().isConnected()) {
+                        return;
+                    }
+
+                    conn = plugin.getMySQL().getConnection();
+                    if (conn == null || conn.isClosed()) {
+                        return;
+                    }
+
+                    // Busca comandos pendentes
+                    st = conn.prepareStatement(
+                            "SELECT id, command FROM rs_command_queue WHERE status = 'WAITING'"
+                    );
+                    rs = st.executeQuery();
 
                     while (rs.next()) {
-                        int id = rs.getInt("id");
-                        String cmd = rs.getString("command");
+                        final int id = rs.getInt("id");
+                        final String cmd = rs.getString("command");
 
-                        // 2. Volta para a thread PRINCIPAL (Sync) para executar o comando
-                        // Comandos Bukkit NÃO podem rodar em Async!
+                        // Executa comando na thread principal
                         new BukkitRunnable() {
                             @Override
                             public void run() {
                                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
-                                Bukkit.getLogger().info("§a[Loja] Comando executado: " + cmd);
+                                plugin.getLogger().info("§a[Loja] Comando executado: " + cmd);
                             }
                         }.runTask(plugin);
 
-                        // 3. Deleta o comando da fila para não executar de novo
-                        PreparedStatement del = conn.prepareStatement("DELETE FROM rs_command_queue WHERE id = ?");
-                        del.setInt(1, id);
-                        del.executeUpdate();
-                        del.close();
+                        // Remove da fila
+                        try (PreparedStatement del = conn.prepareStatement(
+                                "DELETE FROM rs_command_queue WHERE id = ?"
+                        )) {
+                            del.setInt(1, id);
+                            del.executeUpdate();
+                        }
                     }
-                    rs.close();
-                    st.close();
 
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    // Só loga se não estiver em shutdown
+                    if (!plugin.isShuttingDown()) {
+                        plugin.getLogger().warning("§c[Loja] Erro ao buscar fila: " + e.getMessage());
+                    }
+                } finally {
+                    // Fecha recursos
+                    try { if (rs != null) rs.close(); } catch (Exception e) {}
+                    try { if (st != null) st.close(); } catch (Exception e) {}
+                    try { if (conn != null) conn.close(); } catch (Exception e) {}
                 }
             }
         }.runTaskAsynchronously(plugin);

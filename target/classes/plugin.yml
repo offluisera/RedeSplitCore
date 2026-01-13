@@ -133,3 +133,13 @@ commands:
     description: Vincula sua conta ao Discord
     usage: /vinculardc
     aliases: [ linkdc, linkardc, discordlink ]
+  phtest:
+    description: Testa as placeholders do RedeSplitCore
+    usage: /<command> [placeholder|list|all]
+    aliases: [ placeholdertest, testph, testplaceholder ]
+    permission: splitcore.admin.phtest
+    permission-message: §cVocê não tem permissão para usar este comando!
+  tag:
+    description: Gerenciar tags dos jogadores
+    usage: /tag <reload|update|list>
+    permission: redesplitcore.admin

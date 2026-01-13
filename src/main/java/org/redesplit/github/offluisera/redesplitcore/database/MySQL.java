@@ -16,6 +16,7 @@ public class MySQL {
 
     private final RedeSplitCore plugin;
     private static HikariDataSource dataSource;
+    private boolean closed = false;
 
     public MySQL(RedeSplitCore plugin) {
         this.plugin = plugin;
@@ -692,13 +693,52 @@ public class MySQL {
         }
         return finalPermissions;
     }
+    /**
+     * Fecha o pool de conexões de forma segura
+     */
+    public void close() {
+        if (closed || dataSource == null) {
+            return;
+        }
 
-    public static Connection getConnection() throws SQLException {
-        if (dataSource == null) throw new SQLException("DataSource is null");
-        return dataSource.getConnection();
+        if (!dataSource.isClosed()) {
+            try {
+                // Aguarda até 5 segundos para conexões ativas finalizarem
+                dataSource.close();
+                closed = true;
+
+                RedeSplitCore.getInstance().getLogger().info(
+                        "§a[MySQL] Pool fechado. Conexões ativas foram finalizadas."
+                );
+            } catch (Exception e) {
+                RedeSplitCore.getInstance().getLogger().severe(
+                        "§c[MySQL] Erro ao fechar pool: " + e.getMessage()
+                );
+            }
+        }
     }
 
-    public void close() {
-        if (dataSource != null && !dataSource.isClosed()) dataSource.close();
+    /**
+     * Verifica se o pool está conectado e ativo
+     */
+    public boolean isConnected() {
+        return !closed && dataSource != null && !dataSource.isClosed();
+    }
+
+    /**
+     * Retorna uma conexão do pool
+     * PROTEGIDO contra uso durante shutdown
+     */
+    public static Connection getConnection() throws SQLException {
+        // Verifica se está desligando
+        if (RedeSplitCore.getInstance().isShuttingDown()) {
+            throw new SQLException("Plugin em processo de shutdown!");
+        }
+
+        if (dataSource == null || dataSource.isClosed()) {
+            throw new SQLException("Pool de conexões está fechado!");
+        }
+
+        return dataSource.getConnection();
     }
 }

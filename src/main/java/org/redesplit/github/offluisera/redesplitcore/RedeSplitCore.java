@@ -1,7 +1,9 @@
 package org.redesplit.github.offluisera.redesplitcore;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.redesplit.github.offluisera.redesplitcore.api.PlaceholderAPI; // ✅ NOVO IMPORT
 import org.redesplit.github.offluisera.redesplitcore.commands.*;
 import org.redesplit.github.offluisera.redesplitcore.database.MySQL;
 import org.redesplit.github.offluisera.redesplitcore.listeners.*;
@@ -10,21 +12,27 @@ import org.redesplit.github.offluisera.redesplitcore.player.*;
 import org.redesplit.github.offluisera.redesplitcore.redis.RedisManager;
 import org.redesplit.github.offluisera.redesplitcore.system.AuthSystem;
 import org.redesplit.github.offluisera.redesplitcore.system.DiscordLinkManager;
-import org.redesplit.github.offluisera.redesplitcore.system.PasswordRecovery; // ✅ IMPORT ADICIONADO
+import org.redesplit.github.offluisera.redesplitcore.system.PasswordRecovery;
 import org.redesplit.github.offluisera.redesplitcore.tasks.*;
 import org.redesplit.github.offluisera.redesplitcore.utils.PermissionDumper;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 
 public class RedeSplitCore extends JavaPlugin {
 
     private static RedeSplitCore instance;
     private MySQL mySQL;
+    private boolean shuttingDown = false;
     private PlayerManager playerManager;
     private PermissionInjector permissionInjector;
     private VanishManager vanishManager;
     private RedisManager redisManager;
     private AuthSystem authSystem;
-    private PasswordRecovery passwordRecovery; // ✅ VARIÁVEL DE INSTÂNCIA ADICIONADA
+    private PasswordRecovery passwordRecovery;
+    private PlaceholderAPI placeholderAPI; // ✅ NOVO
     private String serverId;
     private DiscordLinkManager discordLinkManager;
     private boolean restarting = false;
@@ -53,11 +61,11 @@ public class RedeSplitCore extends JavaPlugin {
 
         PermissionDumper.dump();
 
-        // ✅ 3. INICIALIZAR SISTEMA DE AUTENTICAÇÃO
+        // 3. INICIALIZAR SISTEMA DE AUTENTICAÇÃO
         this.authSystem = new AuthSystem(this);
         getLogger().info("§a[Auth] Sistema de Login ativado!");
 
-        // ✅ 4. INICIALIZAR SISTEMA DE RECUPERAÇÃO DE SENHA
+        // 4. INICIALIZAR SISTEMA DE RECUPERAÇÃO DE SENHA
         this.passwordRecovery = new PasswordRecovery(this);
         getLogger().info("§a[Auth] Sistema de Recuperação de Senha ativado!");
 
@@ -83,8 +91,12 @@ public class RedeSplitCore extends JavaPlugin {
         this.discordLinkManager = new DiscordLinkManager(this);
         getLogger().info("§a[Discord] Sistema de vinculação ativado!");
 
+        // ✅ 7. INICIALIZAR PLACEHOLDER API
+        this.placeholderAPI = new PlaceholderAPI(this);
+        getLogger().info("§a[PlaceholderAPI] Sistema de Placeholders ativado!");
+        getLogger().info("§e[PlaceholderAPI] Outros plugins podem usar: RedeSplitCore.getPlaceholderAPI()");
 
-        // 7. Tarefas de Economia e Stats
+        // 8. Tarefas de Economia e Stats
         Bukkit.getScheduler().runTaskTimer(this, new EconomyTask(this), 400L, 72000L);
         new ServerStatsTask().runTaskTimer(this, 200, 200);
         getLogger().info("Sistema de ServerStats RedeSplit Ativado!");
@@ -94,11 +106,11 @@ public class RedeSplitCore extends JavaPlugin {
         new DeliveryTask(mySQL).runTaskTimerAsynchronously(this, 100L, 600L);
         getLogger().info("Sistema de Entregas RedeSplit Ativado!");
 
-        // 8. Registrar Comandos
+        // 9. Registrar Comandos
         registerCommands();
         getLogger().info("Sistema de Comandos ativado!");
 
-        // 9. Registrar Eventos
+        // 10. Registrar Eventos
         registerEvents();
         getLogger().info("Sistema de Eventos ativado!");
 
@@ -107,30 +119,157 @@ public class RedeSplitCore extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // Salvar jogadores online
+        getLogger().info("§e╔════════════════════════════════════════╗");
+        getLogger().info("§e║  RedeSplitCore - Shutdown Iniciado    ║");
+        getLogger().info("§e╚════════════════════════════════════════╝");
+
+        // === MARCA COMO DESLIGANDO ===
+        shuttingDown = true;
+
+        // === 1. CANCELA TODAS AS TASKS PRIMEIRO ===
+        getLogger().info("§e[1/5] Cancelando tasks assíncronas...");
+        try {
+            Bukkit.getScheduler().cancelTasks(this);
+            getLogger().info("§a[✓] Tasks canceladas!");
+        } catch (Exception e) {
+            getLogger().warning("§c[!] Erro ao cancelar tasks: " + e.getMessage());
+        }
+
+        // === 2. AGUARDA TASKS TERMINAREM ===
+        getLogger().info("§e[2/5] Aguardando tasks finalizarem...");
+        try {
+            Thread.sleep(1000); // 1 segundo para tasks terminarem
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // === 3. SALVA DADOS DOS JOGADORES (SÍNCRONO) ===
+        getLogger().info("§e[3/5] Salvando dados dos jogadores...");
         if (playerManager != null) {
-            getLogger().info("§e[RedeSplitCore] Salvando dados de jogadores...");
+            try {
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    SplitPlayer sp = playerManager.getPlayer(p.getUniqueId());
+                    if (sp != null) {
+                        // Salva de forma SÍNCRONA durante shutdown
+                        savePlayerSync(sp);
+                    }
+                }
+                getLogger().info("§a[✓] Jogadores salvos: " + Bukkit.getOnlinePlayers().size());
+            } catch (Exception e) {
+                getLogger().severe("§c[!] Erro ao salvar jogadores: " + e.getMessage());
+            }
         }
 
-        // 1. Desliga o Subscriber
-        if (this.redisManager != null) {
-            redisManager.stopSubscriber();
-            getLogger().info("Redis Subscriber encerrado.");
-            this.redisManager.disconnect();
+        // === 4. DESLIGA REDIS ===
+        getLogger().info("§e[4/5] Desconectando Redis...");
+        if (redisManager != null) {
+            try {
+                redisManager.stopSubscriber();
+                redisManager.disconnect();
+                getLogger().info("§a[✓] Redis desconectado!");
+            } catch (Exception e) {
+                getLogger().warning("§c[!] Erro ao desconectar Redis: " + e.getMessage());
+            }
         }
 
-        // 2. Fecha MySQL
+        // === 5. FECHA HIKARICP POR ÚLTIMO ===
+        getLogger().info("§e[5/5] Fechando pool de conexões MySQL...");
         if (mySQL != null) {
-            mySQL.close();
+            try {
+                mySQL.close();
+                getLogger().info("§a[✓] MySQL desconectado!");
+            } catch (Exception e) {
+                getLogger().severe("§c[!] Erro ao desconectar MySQL: " + e.getMessage());
+            }
         }
 
-        getLogger().info("§c[RedeSplitCore] Plugin desativado.");
+        getLogger().info("§a╔════════════════════════════════════════╗");
+        getLogger().info("§a║  RedeSplitCore Desligado com Sucesso  ║");
+        getLogger().info("§a╚════════════════════════════════════════╝");
+    }
+
+    /**
+     * Salva jogador de forma SÍNCRONA (usado no shutdown)
+     */
+    private void savePlayerSync(SplitPlayer sp) {
+        if (mySQL == null || !mySQL.isConnected()) {
+            return;
+        }
+
+        try (Connection conn = mySQL.getConnection()) {
+            String serverId = getServerId();
+            boolean isLobby = serverId.equalsIgnoreCase("geral") || serverId.equalsIgnoreCase("lobby");
+            long sessionTime = sp.getSessionPlaytime();
+
+            // Salva Global (Cash)
+            PreparedStatement psGlobal = conn.prepareStatement(
+                    "UPDATE rs_players SET cash = ?, last_login = NOW() WHERE uuid = ?"
+            );
+            psGlobal.setDouble(1, sp.getCash());
+            psGlobal.setString(2, sp.getUuid().toString());
+            psGlobal.executeUpdate();
+            psGlobal.close();
+
+            // Salva Local (Coins + Playtime)
+            if (isLobby) {
+                PreparedStatement psLobby = conn.prepareStatement(
+                        "UPDATE rs_players SET coins = ?, playtime = playtime + ? WHERE uuid = ?"
+                );
+                psLobby.setDouble(1, sp.getCoins());
+                psLobby.setLong(2, sessionTime);
+                psLobby.setString(3, sp.getUuid().toString());
+                psLobby.executeUpdate();
+                psLobby.close();
+            } else {
+                String table = getTableName(serverId);
+                String col = getCoinColumnName(serverId);
+                String sql = "UPDATE " + table + " SET " + col + " = ?, playtime = playtime + ? WHERE uuid = ?";
+                try (PreparedStatement psGame = conn.prepareStatement(sql)) {
+                    psGame.setDouble(1, sp.getCoins());
+                    psGame.setLong(2, sessionTime);
+                    psGame.setString(3, sp.getUuid().toString());
+                    psGame.executeUpdate();
+                }
+            }
+        } catch (SQLException e) {
+            getLogger().warning("Erro ao salvar " + sp.getName() + ": " + e.getMessage());
+        }
+    }
+
+    // Métodos auxiliares do savePlayerSync
+    private String getTableName(String serverId) {
+        switch (serverId.toLowerCase()) {
+            case "skyblock": return "rs_stats_skyblock";
+            case "rankup":   return "rs_stats_rankup";
+            case "fullpvp":  return "rs_stats_fullpvp";
+            case "survival": return "rs_stats_survival";
+            case "bedwars":  return "rs_stats_bedwars";
+            case "skywars":  return "rs_stats_skywars";
+            default:         return "rs_players";
+        }
+    }
+
+    private String getCoinColumnName(String serverId) {
+        switch (serverId.toLowerCase()) {
+            case "bedwars":
+            case "skywars":
+                return "coins";
+            default:
+                return "balance";
+        }
+    }
+
+    /**
+     * Verifica se o plugin está em processo de shutdown
+     */
+    public boolean isShuttingDown() {
+        return shuttingDown;
     }
 
     // --- Métodos Auxiliares ---
 
     private void registerCommands() {
-        // ✅ COMANDOS DE AUTENTICAÇÃO
+        // COMANDOS DE AUTENTICAÇÃO
         AuthCommands authCmd = new AuthCommands(authSystem);
         getCommand("login").setExecutor(authCmd);
         getCommand("logar").setExecutor(authCmd);
@@ -139,7 +278,7 @@ public class RedeSplitCore extends JavaPlugin {
         getCommand("changepassword").setExecutor(authCmd);
         getCommand("trocarsenha").setExecutor(authCmd);
 
-        // ✅ COMANDO DE RECUPERAÇÃO DE SENHA
+        // COMANDO DE RECUPERAÇÃO DE SENHA
         getCommand("recovery").setExecutor(new RecoveryCommand(passwordRecovery));
         getCommand("vinculardc").setExecutor(new DiscordLinkCommand());
 
@@ -175,6 +314,8 @@ public class RedeSplitCore extends JavaPlugin {
         getCommand("unmute").setExecutor(punishExecutor);
         getCommand("pardon").setExecutor(punishExecutor);
         getCommand("report").setExecutor(new ReportCommand());
+        getCommand("phtest").setExecutor(new PlaceholderTestCommand());
+
 
         // Comandos de Rank
         RankCommands rankCmd = new RankCommands();
@@ -182,10 +323,11 @@ public class RedeSplitCore extends JavaPlugin {
         getCommand("rank").setExecutor(rankCmd);
         getCommand("settemprank").setExecutor(rankCmd);
         getCommand("perm").setExecutor(rankCmd);
+        getCommand("tag").setExecutor(new TagCommand());
     }
 
     private void registerEvents() {
-        // ✅ Listener de Autenticação (DEVE VIR PRIMEIRO)
+        // Listener de Autenticação (DEVE VIR PRIMEIRO)
         getServer().getPluginManager().registerEvents(new AuthListener(this, authSystem), this);
 
         // Listeners Existentes
@@ -209,8 +351,13 @@ public class RedeSplitCore extends JavaPlugin {
     public PermissionInjector getPermissionInjector() { return permissionInjector; }
     public RedisManager getRedisManager() { return redisManager; }
     public AuthSystem getAuthSystem() { return authSystem; }
-    public PasswordRecovery getPasswordRecovery() { return passwordRecovery; } // ✅ GETTER ADICIONADO
+    public PasswordRecovery getPasswordRecovery() { return passwordRecovery; }
     public DiscordLinkManager getDiscordLinkManager() {return discordLinkManager;}
+
+    // ✅ GETTER DA PLACEHOLDER API
+    public static PlaceholderAPI getPlaceholderAPI() {
+        return instance.placeholderAPI;
+    }
 
     public boolean isRestarting() {
         return restarting;
