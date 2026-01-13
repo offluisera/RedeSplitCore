@@ -358,6 +358,8 @@ public class RedeSplitCore extends JavaPlugin {
     public AuthSystem getAuthSystem() { return authSystem; }
     public PasswordRecovery getPasswordRecovery() { return passwordRecovery; }
     public DiscordLinkManager getDiscordLinkManager() {return discordLinkManager;}
+    public XPManager getXPManager() { return xpManager; }
+
 
     // ✅ GETTER DA PLACEHOLDER API
     public static PlaceholderAPI getPlaceholderAPI() {
