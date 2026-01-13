@@ -2,6 +2,7 @@ package org.redesplit.github.offluisera.redesplitcore.api;
 
 import org.bukkit.entity.Player;
 import org.redesplit.github.offluisera.redesplitcore.RedeSplitCore;
+import org.redesplit.github.offluisera.redesplitcore.managers.XPManager;
 import org.redesplit.github.offluisera.redesplitcore.player.SplitPlayer;
 import org.redesplit.github.offluisera.redesplitcore.player.PlayerManager;
 
@@ -177,6 +178,31 @@ public class PlaceholderAPI {
 
         if (placeholder.equals("splitcore_server_name")) {
             return getServerName(plugin.getServerId());
+        }
+
+        // ========== XP E NÍVEL ==========
+        if (placeholder.equals("splitcore_xp")) {
+            return String.valueOf(data.getXp());
+        }
+
+        if (placeholder.equals("splitcore_xp_formatted")) {
+            return String.format("%,d", data.getXp());
+        }
+
+        if (placeholder.equals("splitcore_level")) {
+            return XPManager.getLevelBadge(data.getLevel());
+        }
+
+        if (placeholder.equals("splitcore_level_number")) {
+            return String.valueOf(data.getLevel());
+        }
+
+        if (placeholder.equals("splitcore_xp_to_next")) {
+            return String.valueOf(data.getXpToNextLevel());
+        }
+
+        if (placeholder.equals("splitcore_xp_progress")) {
+            return String.format("%.1f%%", data.getProgressToNextLevel());
         }
 
         return null; // Placeholder não encontrada

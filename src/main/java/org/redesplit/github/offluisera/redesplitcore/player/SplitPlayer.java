@@ -25,6 +25,9 @@ public class SplitPlayer {
     // NOVO CAMPO: Timestamp de quando acaba o mute (0 = sem mute)
     private long muteExpires = 0;
 
+    private long xp;
+    private int level;
+
     public SplitPlayer(UUID uuid, String name, String rankId, double coins, double cash) {
         this.uuid = uuid;
         this.name = name;
@@ -37,6 +40,9 @@ public class SplitPlayer {
 
         // Por padrão inicia sem mute (será carregado depois pelo PlayerManager)
         this.muteExpires = 0;
+
+        this.xp = 0;
+        this.level = 1;
     }
 
     // --- Getters e Setters ---
@@ -89,5 +95,24 @@ public class SplitPlayer {
      */
     public boolean isMuted() {
         return muteExpires > System.currentTimeMillis();
+    }
+
+    // GETTERS E SETTERS DE XP
+
+    public long getXp() {return xp;}
+    public void setXp(long xp) {this.xp = xp;updateLevel();}
+    public void addXp(long amount) {this.xp += amount;updateLevel();}
+    public void removeXp(long amount) {this.xp = Math.max(0, this.xp - amount);updateLevel();}
+    public int getLevel() {return level;}
+    public void setLevel(int level) {this.level = Math.max(1, level);}
+    private void updateLevel() {int newLevel = calculateLevel(this.xp);if (newLevel != this.level) {this.level = newLevel;}}
+    public static int calculateLevel(long xp) {return (int) Math.max(1, (xp / 1000) + 1);}
+    public long getXpToNextLevel() {long nextLevelXp = level * 1000L;return Math.max(0, nextLevelXp - xp);}
+    public double getProgressToNextLevel() {
+        long currentLevelXp = (level - 1) * 1000L;
+        long nextLevelXp = level * 1000L;
+        long progressXp = xp - currentLevelXp;
+        long requiredXp = nextLevelXp - currentLevelXp;
+        return Math.min(100.0, (progressXp * 100.0) / requiredXp);
     }
 }

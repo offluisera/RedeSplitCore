@@ -628,6 +628,30 @@ public class MySQL {
                     "ip_sender VARCHAR(45)" +
                     ")");
 
+
+        // Tabela de XP dos jogadores
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS rs_player_xp (" +
+                    "uuid VARCHAR(36) PRIMARY KEY," +
+                    "player_name VARCHAR(16) NOT NULL," +
+                    "xp BIGINT DEFAULT 0," +
+                    "level INT DEFAULT 1," +
+                    "last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                    "FOREIGN KEY (uuid) REFERENCES rs_players(uuid) ON DELETE CASCADE," +
+                    "INDEX (level)" +
+                    ")");
+
+        // Tabela de histórico de XP (para auditoria)
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS rs_xp_history (" +
+                    "id INT AUTO_INCREMENT PRIMARY KEY," +
+                    "uuid VARCHAR(36) NOT NULL," +
+                    "player_name VARCHAR(16) NOT NULL," +
+                    "xp_amount BIGINT NOT NULL," +
+                    "reason VARCHAR(100) NOT NULL," +
+                    "operator VARCHAR(32) DEFAULT 'SISTEMA'," +
+                    "date TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
+                    "INDEX (uuid), INDEX (date)" +
+                    ")");
+
             Bukkit.getLogger().info("§a[MySQL] Tabela Cash Logs carregada com sucesso!");
 
 

@@ -36,6 +36,7 @@ public class RedeSplitCore extends JavaPlugin {
     private String serverId;
     private DiscordLinkManager discordLinkManager;
     private boolean restarting = false;
+    private XPManager xpManager;
 
     @Override
     public void onEnable() {
@@ -95,6 +96,9 @@ public class RedeSplitCore extends JavaPlugin {
         this.placeholderAPI = new PlaceholderAPI(this);
         getLogger().info("§a[PlaceholderAPI] Sistema de Placeholders ativado!");
         getLogger().info("§e[PlaceholderAPI] Outros plugins podem usar: RedeSplitCore.getPlaceholderAPI()");
+
+        this.xpManager = new XPManager(this);
+        getLogger().info("§a[XP] Sistema de XP e Níveis ativado!");
 
         // 8. Tarefas de Economia e Stats
         Bukkit.getScheduler().runTaskTimer(this, new EconomyTask(this), 400L, 72000L);
@@ -315,6 +319,7 @@ public class RedeSplitCore extends JavaPlugin {
         getCommand("pardon").setExecutor(punishExecutor);
         getCommand("report").setExecutor(new ReportCommand());
         getCommand("phtest").setExecutor(new PlaceholderTestCommand());
+        getCommand("xp").setExecutor(new XPCommand());
 
 
         // Comandos de Rank
